@@ -1,6 +1,16 @@
+import DatabricksService from '../services/databricksService';
+
 export class TelemetryFetcher {
   constructor() {
+    this.databricksService = new DatabricksService();
     this.mockData = this.generateMockTelemetryData();
+    this.useDatabricks = this.databricksService.isConfigured();
+    
+    if (this.useDatabricks) {
+      console.log('TelemetryFetcher: Using Databricks for telemetry data');
+    } else {
+      console.log('TelemetryFetcher: Using mock data (Databricks not configured)');
+    }
   }
 
   generateMockTelemetryData() {
@@ -28,6 +38,16 @@ export class TelemetryFetcher {
   }
 
   async fetchLatestTelemetry(componentID) {
+    if (this.useDatabricks) {
+      try {
+        const allTelemetry = await this.databricksService.fetchLatestTelemetry();
+        return allTelemetry.find(data => data.componentID === componentID) || null;
+      } catch (error) {
+        console.error('Error fetching from Databricks, falling back to mock data:', error);
+        // Fall back to mock data
+      }
+    }
+    
     await this.simulateDelay();
     
     const componentData = this.mockData
@@ -38,6 +58,19 @@ export class TelemetryFetcher {
   }
 
   async fetchHistoricalTelemetry(componentID, startTime, endTime) {
+    if (this.useDatabricks) {
+      try {
+        // For historical data, we can use the time range function
+        const telemetryData = await this.databricksService.fetchTelemetryByTimeRange(startTime, endTime);
+        return telemetryData
+          .filter(data => data.componentID === componentID)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      } catch (error) {
+        console.error('Error fetching historical data from Databricks, falling back to mock data:', error);
+        // Fall back to mock data
+      }
+    }
+    
     await this.simulateDelay();
     
     const start = new Date(startTime);
@@ -54,6 +87,15 @@ export class TelemetryFetcher {
   }
 
   async fetchAllLatestTelemetry() {
+    if (this.useDatabricks) {
+      try {
+        return await this.databricksService.fetchLatestTelemetry();
+      } catch (error) {
+        console.error('Error fetching all telemetry from Databricks, falling back to mock data:', error);
+        // Fall back to mock data
+      }
+    }
+    
     await this.simulateDelay();
     
     const latest = {};
@@ -69,6 +111,15 @@ export class TelemetryFetcher {
   }
 
   async fetchTelemetryByTimeRange(startTime, endTime) {
+    if (this.useDatabricks) {
+      try {
+        return await this.databricksService.fetchTelemetryByTimeRange(startTime, endTime);
+      } catch (error) {
+        console.error('Error fetching telemetry by time range from Databricks, falling back to mock data:', error);
+        // Fall back to mock data
+      }
+    }
+    
     await this.simulateDelay();
     
     const start = new Date(startTime);
