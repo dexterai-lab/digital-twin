@@ -8,6 +8,7 @@ import AlertsCenter from '../components/AlertsCenter/AlertsCenter';
 import ThreeDViewer from '../components/ThreeDViewer/ThreeDViewer';
 import RDFModelEditor from '../components/RDFEditor/RDFModelEditor';
 import ModelLibrary from '../components/RDFEditor/ModelLibrary';
+import TelemetryDebugPanel from '../components/TelemetryPanel/TelemetryDebugPanel';
 import { RDFParser } from '../utils/rdfParser';
 import { TelemetryFetcher } from '../utils/telemetryFetcher';
 import { RDFWriter } from '../utils/rdfWriter';
@@ -70,6 +71,7 @@ const Home = () => {
 
   useEffect(() => {
     initializeApp();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -290,6 +292,7 @@ const Home = () => {
                   </span>
                 </div>
               </div>
+              <TelemetryDebugPanel />
             </div>
           </div>
         );

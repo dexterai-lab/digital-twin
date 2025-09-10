@@ -5,11 +5,36 @@ export class TelemetryFetcher {
     this.databricksService = new DatabricksService();
     this.mockData = this.generateMockTelemetryData();
     this.useDatabricks = this.databricksService.isConfigured();
+    this.connectionTested = false;
     
     if (this.useDatabricks) {
-      console.log('TelemetryFetcher: Using Databricks for telemetry data');
+      console.log('TelemetryFetcher: Databricks configured, will test connection on first use');
+      this.testDatabricksConnection();
     } else {
       console.log('TelemetryFetcher: Using mock data (Databricks not configured)');
+    }
+  }
+
+  async testDatabricksConnection() {
+    if (this.connectionTested) return;
+    
+    try {
+      console.log('Testing Databricks connection...');
+      const isConnected = await this.databricksService.testConnection();
+      if (isConnected) {
+        console.log('✅ Databricks connection successful');
+        // Try to get table schema for debugging
+        try {
+          await this.databricksService.getTableInfo();
+        } catch (schemaError) {
+          console.warn('Could not fetch table schema (table may not exist yet):', schemaError.message);
+        }
+      }
+      this.connectionTested = true;
+    } catch (error) {
+      console.error('❌ Databricks connection failed:', error.message);
+      console.log('Falling back to mock data');
+      this.useDatabricks = false;
     }
   }
 
@@ -40,14 +65,33 @@ export class TelemetryFetcher {
   async fetchLatestTelemetry(componentID) {
     if (this.useDatabricks) {
       try {
+        await this.testDatabricksConnection();
+        
+        console.log(`Fetching latest telemetry for component: ${componentID}`);
         const allTelemetry = await this.databricksService.fetchLatestTelemetry();
-        return allTelemetry.find(data => data.componentID === componentID) || null;
+        
+        if (allTelemetry.length > 0) {
+          console.log(`Received ${allTelemetry.length} telemetry records from Databricks`);
+          const componentData = allTelemetry.find(data => data.componentID === componentID);
+          if (componentData) {
+            console.log(`Found telemetry data for ${componentID}:`, componentData);
+            return componentData;
+          } else {
+            console.warn(`No telemetry data found for component ${componentID}. Available components:`, 
+                        allTelemetry.map(d => d.componentID));
+            return null;
+          }
+        } else {
+          console.warn('No telemetry data returned from Databricks');
+          throw new Error('No telemetry data available');
+        }
       } catch (error) {
-        console.error('Error fetching from Databricks, falling back to mock data:', error);
-        // Fall back to mock data
+        console.error('Error fetching from Databricks, falling back to mock data:', error.message);
+        this.useDatabricks = false; // Disable for this session
       }
     }
     
+    console.log(`Using mock data for component: ${componentID}`);
     await this.simulateDelay();
     
     const componentData = this.mockData
@@ -89,13 +133,25 @@ export class TelemetryFetcher {
   async fetchAllLatestTelemetry() {
     if (this.useDatabricks) {
       try {
-        return await this.databricksService.fetchLatestTelemetry();
+        await this.testDatabricksConnection();
+        
+        console.log('Fetching all latest telemetry from Databricks');
+        const result = await this.databricksService.fetchLatestTelemetry();
+        
+        if (result.length > 0) {
+          console.log(`Received telemetry data for ${result.length} components from Databricks`);
+          return result;
+        } else {
+          console.warn('No telemetry data returned from Databricks');
+          throw new Error('No telemetry data available');
+        }
       } catch (error) {
-        console.error('Error fetching all telemetry from Databricks, falling back to mock data:', error);
-        // Fall back to mock data
+        console.error('Error fetching all telemetry from Databricks, falling back to mock data:', error.message);
+        this.useDatabricks = false; // Disable for this session
       }
     }
     
+    console.log('Using mock data for all latest telemetry');
     await this.simulateDelay();
     
     const latest = {};
